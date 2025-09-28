@@ -1,64 +1,74 @@
 package com.example.dc.sort;
 
-import com.example.dc.util.Metrics;
 import java.util.Arrays;
 
 public class DeterministicSelect {
 
-    public static int select(int[] a, int k) {
-        if (k < 0 || k >= a.length) throw new IllegalArgumentException("k out of bounds");
-        return select(a, 0, a.length - 1, k);
+
+    public static int select(int[] arr, int k) {
+        if (arr == null || arr.length == 0)
+            throw new IllegalArgumentException("Array is empty");
+        if (k < 0 || k >= arr.length)
+            throw new IllegalArgumentException("k out of range");
+
+        int[] copy = Arrays.copyOf(arr, arr.length);
+        return select(copy, 0, copy.length - 1, k);
     }
 
-    private static int select(int[] a, int l, int r, int k) {
+    private static int select(int[] a, int left, int right, int k) {
         while (true) {
-            if (l == r) return a[l];
-            int pivot = medianOfMedians(a, l, r);
-            int p = partition(a, l, r, pivot);
-            if (k == p) return a[k];
-            else if (k < p) r = p - 1;
-            else l = p + 1;
-        }
-    }
+            if (left == right) return a[left];
 
-    private static int partition(int[] a, int l, int r, int pivotValue) {
-        int store = l;
-        for (int i = l; i <= r; i++) {
-            Metrics.incComparisons(1);
-            if (a[i] < pivotValue) {
-                swap(a, store++, i);
+            int pivotIndex = pivotIndexMedianOfMedians(a, left, right);
+            pivotIndex = partition(a, left, right, pivotIndex);
+
+            if (k == pivotIndex) {
+                return a[k];
+            } else if (k < pivotIndex) {
+                right = pivotIndex - 1;
+            } else {
+                left = pivotIndex + 1;
             }
         }
-        // place pivot value at store
-        int pivotIndex = -1;
-        for (int i = l; i <= r; i++) if (a[i] == pivotValue) { pivotIndex = i; break; }
-        if (pivotIndex == -1) pivotIndex = r;
-        swap(a, store, pivotIndex);
-        return store;
+    }
+
+
+    private static int pivotIndexMedianOfMedians(int[] a, int left, int right) {
+        if (right - left < 5) {
+            Arrays.sort(a, left, right + 1);
+            return (left + right) / 2;
+        }
+
+        int subRight = left;
+        for (int i = left; i <= right; i += 5) {
+            int subEnd = Math.min(i + 4, right);
+            Arrays.sort(a, i, subEnd + 1);
+            int medianIndex = i + (subEnd - i) / 2;
+            swap(a, medianIndex, subRight++);
+        }
+        return pivotIndexMedianOfMedians(a, left, subRight - 1);
+    }
+
+
+    private static int partition(int[] a, int left, int right, int pivotIndex) {
+        int pivotValue = a[pivotIndex];
+        swap(a, pivotIndex, right);
+        int storeIndex = left;
+
+        for (int i = left; i < right; i++) {
+            if (a[i] < pivotValue) {
+                swap(a, storeIndex++, i);
+            }
+        }
+        swap(a, storeIndex, right);
+        return storeIndex;
     }
 
     private static void swap(int[] a, int i, int j) {
-        int t = a[i]; a[i] = a[j]; a[j] = t;
-        Metrics.incSwaps(1);
-    }
-
-    private static int medianOfMedians(int[] a, int l, int r) {
-        int n = r - l + 1;
-        if (n <= 5) {
-            int[] tmp = Arrays.copyOfRange(a, l, r + 1);
-            Arrays.sort(tmp);
-            return tmp[n/2];
+        if (i != j) {
+            int tmp = a[i];
+            a[i] = a[j];
+            a[j] = tmp;
         }
-        int numMedians = (n + 4) / 5;
-        for (int i = 0; i < numMedians; i++) {
-            int subL = l + i*5;
-            int subR = Math.min(subL + 4, r);
-            int[] tmp = Arrays.copyOfRange(a, subL, subR + 1);
-            Arrays.sort(tmp);
-            int median = tmp[(tmp.length-1)/2];
-            a[l + i] = median;
-            Metrics.incAllocations(1);
-        }
-        return medianOfMedians(a, l, l + numMedians - 1);
     }
 }
